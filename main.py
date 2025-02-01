@@ -61,24 +61,58 @@ for person in people:
     price_per_person[person] = 0
     items_per_person[person] = []
 
-
 for i in range(0, len(all_items)):
     curr = all_items[i]
     print(f"Item {i+1}: {curr['name'], curr['price'], curr['count']}")
 
-    for j in range(0, curr['count']):
+    j = 0
+    while j < curr['count']:
+        print("j", j)
         name = ""
-        while name not in price_per_person:
-            name = input(f"Who bought this?")
-            if name not in price_per_person:
-                print("valid names are: ", price_per_person.keys())
-
-        price_per_person[name] += curr['price'] / float(curr['count']) 
-        items_per_person[name].append(curr['name'])
+        while any(n not in price_per_person for n in name.split(",") ):
+            name = input(f"Who bought this? (You can split by entering names separated by commas): ")
+            if any(n not in price_per_person for n in name.split(",")):
+                print("Valid names are: ", price_per_person.keys())
     
-# print(price_per_person)
+        if "," in name:
+            split_names = name.split(",")
+            split_price = curr['price'] / float(curr['count']) / len(split_names)
+            for split_name in split_names:
+                split_name = split_name.strip()
+                price_per_person[split_name] += split_price
+                items_per_person[split_name].append(curr['name'])
+            j += len(split_names) - 1
+        else:
+            price_per_person[name] += curr['price'] / float(curr['count'])
+            items_per_person[name].append(curr['name'])
+            j += 1
+
+# Input tax and tip
+tax = float(input("Enter the tax amount in dollars: "))
+tip_percent = float(input("Enter the tip percentage: "))
+tip = sum(price_per_person.values()) * (tip_percent / 100)
+
+# Distribute tax and tip
+total_additional = tax + tip
+additional_per_person = total_additional / len(people)
+for person in price_per_person:
+    price_per_person[person] += additional_per_person
+
+# Adjust to match actual total
+actual_total = float(input("Enter the actual total amount: "))
+calculated_total = sum(price_per_person.values())
+adjustment = actual_total - calculated_total
+adjustment_per_person = adjustment / len(people)
+for person in price_per_person:
+    price_per_person[person] += adjustment_per_person
+
+# Output to CSV
 with open("output.csv", "w") as f:
     writer = csv.writer(f)
     writer.writerow(["Name", "Items Bought", "Total Price"])
     for person in price_per_person:
-        writer.writerow([person, ", ".join(items_per_person[person]), price_per_person[person]])
+        writer.writerow([person, ", ".join(items_per_person[person]), round(price_per_person[person], 2)])
+    writer.writerow(["Tax", "", round(tax, 2)])
+    writer.writerow(["Tip", "", round(tip, 2)])
+    writer.writerow(["Total", "", round(actual_total, 2)])
+    writer.writerow(["Calculated Total", "", round(calculated_total, 2)])
